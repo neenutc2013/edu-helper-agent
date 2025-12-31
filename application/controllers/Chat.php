@@ -31,19 +31,52 @@ class Chat extends CI_Controller {
         echo json_encode(['reply' => $reply]);
     }
 
-    // Agent logic
+
     private function edu_helper_agent($message, $history) {
-        $topics = ['solar system', 'fractions', 'water cycle'];
-        $msg = strtolower($message);
 
-        foreach ($topics as $topic) {
-            if (strpos($msg, $topic) !== false) {
-                $reply = "Hello! Here's a quick explanation about " . ucfirst($topic) . ". Keep learning! 😊";
-                // Limit to 60 words
-                return implode(' ', array_slice(explode(' ', $reply), 0, 60));
-            }
+    $topics = ['solar system', 'fractions', 'water cycle'];
+    $msg = strtolower($message);
+    $matched = false;
+
+    foreach ($topics as $topic) {
+        if (strpos($msg, $topic) !== false) {
+            $matched = $topic;
+            break;
         }
-
-        return "I can only help with Solar System, Fractions, or Water Cycle for now 😊";
     }
+
+    if (!$matched) {
+        return "I can help only with Solar System, Fractions, or Water Cycle 😊";
+    }
+
+    $prompt = "Explain {$matched} simply for a school student. Limit to 60 words.";
+
+    $data = [
+        "model" => "phi", // SMALL MODEL
+        "prompt" => $prompt,
+        "stream" => false
+    ];
+
+    // print_r($data);exit;
+
+    $ch = curl_init("http://localhost:11434/api/generate");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $result = json_decode($response, true);
+
+    if (!isset($result['response'])) {
+        return "Sorry, I couldn’t respond right now.";
+    }
+
+    return implode(' ', array_slice(explode(' ', trim($result['response'])), 0, 60));
+}
+
+
+
 }
